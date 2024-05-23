@@ -1,0 +1,16 @@
+.controll-panel {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+}
+
+.controll-button {
+  padding: 5px;
+  background-color: transparent;
+  cursor: pointer;
+  border: none;
+}
+
+.sound-controll {
+}

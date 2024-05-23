@@ -1,14 +1,45 @@
 import * as d3 from 'd3';
 import { IOptions } from '../interface';
 
+export enum EventType {
+  DRAG_CURSOR,
+  DRAG_CURSOR_END,
+}
+
+type EventHandler<T> = (arg: T) => void;
+
 class Drawer {
   private buffer: AudioBuffer;
 
   private parent: HTMLElement;
 
+  private cursor: d3.Selection<SVGGElement, undefined, null, undefined> | null =
+    null;
+
+  private playbackPageScale: d3.ScaleLinear<number, number, never> | null =
+    null;
+
+  private playbackDurationScale: d3.ScaleLinear<number, number, never> | null =
+    null;
+
+  private cursorTopShift: number = 0;
+
+  private currentCursorPosition: number = 0;
+
+  private paddings: number = 15; // are set for container in css
+
+  private leftBound: number;
+
+  private rightBound: number;
+
+  private eventHandlers;
+
   constructor(buffer: AudioBuffer, parent: HTMLElement) {
     this.buffer = buffer;
     this.parent = parent;
+    this.leftBound = this.parent.getBoundingClientRect().left - this.paddings;
+    this.rightBound = this.parent.getBoundingClientRect().right - this.paddings;
+    this.eventHandlers = new Map<EventType, Array<EventHandler<any>>>();
   }
 
   private getTimeDomain() {
@@ -33,6 +64,98 @@ class Drawer {
     });
   }
 
+  public initTimeLine = (
+    svg: d3.Selection<SVGSVGElement, undefined, null, undefined>,
+    options: IOptions
+  ) => {
+    const {
+      margin = { top: 40, bottom: 60, left: 0, right: 0 },
+      height = this.parent.clientHeight,
+    } = options;
+
+    this.cursorTopShift = margin.top;
+
+    const dragHandler = d3
+      .drag()
+      .on('start', this.triangleDragStarted)
+      .on('drag', (e) => this.dragCursor(e.x, this.cursorTopShift))
+      .on('end', (e) => this.triangleDragEnded(e.x));
+
+    this.playbackPageScale = d3
+      .scaleLinear()
+      .domain([0, this.buffer.duration])
+      .range([this.leftBound, this.rightBound]);
+
+    this.playbackDurationScale = d3
+      .scaleLinear()
+      .domain([this.leftBound, this.rightBound])
+      .range([0, this.buffer.duration]);
+
+    this.cursor = svg
+      .append('g')
+      .attr('class', 'cursor-group')
+      .attr('cursor', `pointer`)
+      .attr('height', height - margin.top - margin.bottom)
+      .attr(
+        'transform',
+        `translate(${this.playbackPageScale(0)}, ${this.cursorTopShift})`
+      )
+      .call(dragHandler);
+
+    this.cursor
+      .append('rect')
+      .attr('class', 'cursor')
+      .attr('width', 3)
+      .attr('height', height - margin.top - margin.bottom)
+      .attr('fill', 'red');
+
+    this.cursor
+      .append('path')
+      .attr('class', 'triangle')
+      .attr('d', 'M1.5 1.5 L1.5 12.5 L11.5 7 z')
+      .attr('transform', `translate(9,-15) rotate(90)`)
+      .attr('fill', 'red')
+      .attr('stroke', 'red')
+      .attr('stroke-width', '1');
+  };
+
+  private triangleDragStarted = (e) => {};
+
+  private triangleDragEnded = (x: number) => {
+    this.emit<number>(
+      EventType.DRAG_CURSOR_END,
+      this.playbackDurationScale!(x)
+    );
+  };
+
+  public dragCursor = (x: number, y?: number) => {
+    this.moveCursor(x, y, { drag: true, reset: false });
+    this.emit(EventType.DRAG_CURSOR, this.playbackDurationScale!(x));
+  };
+
+  public moveCursor = (
+    x: number,
+    y?: number,
+    options: { reset: boolean; drag: boolean } = { drag: false, reset: false }
+  ) => {
+    const { reset, drag } = options;
+
+    if (reset) this.currentCursorPosition = this.leftBound + 1;
+    else if (drag) this.currentCursorPosition = x;
+    else this.currentCursorPosition += this.playbackPageScale!(x);
+
+    if (
+      this.cursor &&
+      this.currentCursorPosition > this.leftBound &&
+      this.currentCursorPosition < this.rightBound
+    ) {
+      this.cursor.attr(
+        'transform',
+        `translate(${this.currentCursorPosition}, ${y || this.cursorTopShift})`
+      );
+    }
+  };
+
   public generateWaveform(
     audioData: number[],
     options: IOptions // need to describe interface
@@ -44,7 +167,7 @@ class Drawer {
       padding = 1,
     } = options;
 
-    const domain = d3.extent(audioData);
+    const domain = d3.extent(audioData); // [min, max]
 
     const xScale = d3
       .scaleLinear()
@@ -57,7 +180,6 @@ class Drawer {
       .range([margin.top, height - margin.bottom]);
 
     const svg = d3.create('svg');
-
     svg
       .style('width', this.parent.clientWidth)
       .style('height', this.parent.clientHeight)
@@ -101,13 +223,13 @@ class Drawer {
       .attr('transform', `translate(0, ${height / 2})`)
       .attr('fill', '#03A300');
 
-    const band = (width - margin.left - margin.right) / audioData.length;
+    const band = (width - margin.left - margin.right) / audioData.length; // audiotrack length
 
     g.selectAll('rect')
       .data(audioData)
       .join('rect')
       .attr('fill', '#03A300')
-      .attr('height', (d) => yScale(d))
+      .attr('height', (d) => yScale(d)) // from data value into page scales
       .attr('width', () => band * padding)
       .attr('x', (_, i) => xScale(i))
       .attr('y', (d) => -yScale(d) / 2)
@@ -136,6 +258,7 @@ class Drawer {
 
   public clearData() {
     const rawData = this.buffer.getChannelData(0); // We only need to work with one channel of data
+    // https://www.izotope.com/en/learn/digital-audio-basics-sample-rate-and-bit-depth.html#:~:text=Sample%20rate%20is%20the%20number,frequencies%20captured%20in%20digital%20audio.
     const samples = this.buffer.sampleRate; // Number of samples we want to have in our final data set
     const blockSize = Math.floor(rawData.length / samples); // the number of samples in each subdivision
     const filteredData = [];
@@ -148,13 +271,40 @@ class Drawer {
       filteredData.push(sum / blockSize); // divide the sum by the block size to get the average
     }
     const multiplier = Math.max(...filteredData) ** -1;
-    return filteredData.map((n) => n * multiplier);
+    return filteredData.map((n) => n * multiplier); // scaling data to [0, 1]
+  }
+
+  public clear() {
+    this.parent.innerHTML = '';
   }
 
   public init() {
-    const audioData = this.clearData();
-    const node = this.generateWaveform(audioData, {});
-    this.parent.appendChild(node.node() as Element);
+    return new Promise((res) => {
+      this.parent.innerHTML = '';
+      const audioData = this.clearData();
+      const node = this.generateWaveform(audioData, {});
+      this.initTimeLine(node, {
+        margin: { top: 40, bottom: 40, left: 0, right: 0 },
+      });
+      this.parent.appendChild(node.node() as Element);
+      res(undefined);
+    });
+  }
+
+  subscribe<T>(eventType: EventType, handler: EventHandler<T>): void {
+    if (!this.eventHandlers.has(eventType)) {
+      this.eventHandlers.set(eventType, []);
+    }
+    this.eventHandlers.get(eventType)?.push(handler);
+  }
+
+  emit<T>(eventType: EventType, arg: T): void {
+    const handlers = this.eventHandlers.get(eventType);
+    if (handlers) {
+      handlers.forEach((handler) => {
+        handler(arg);
+      });
+    }
   }
 }
 

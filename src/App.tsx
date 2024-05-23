@@ -1,15 +1,12 @@
 import './App.css';
-// import Demo from './docs-examples/useImperativeHandleExample/Demo';
-// import Tooltip from './docs-examples/useLayoutEffectExample/Tooltip';
+import { PlayerProvider } from './context/PlayerContext';
 import HomePage from './pages/home';
 
 function App() {
   return (
-    <>
+    <PlayerProvider>
       <HomePage></HomePage>
-      {/* <Tooltip></Tooltip> */}
-      {/* <Demo></Demo> */}
-    </>
+    </PlayerProvider>
   );
 }
 

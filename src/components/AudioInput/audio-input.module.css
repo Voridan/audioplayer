@@ -1,0 +1,22 @@
+.body {
+  border-radius: 20px;
+  border: 1px solid #fff;
+  transition: all 0.3s ease 0s;
+}
+
+.choose-file {
+  padding: 8px;
+  cursor: pointer;
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  pointer-events: inherit;
+}
+
+.body-drag {
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.37);
+  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+  border: 1px dashed #fff;
+}
