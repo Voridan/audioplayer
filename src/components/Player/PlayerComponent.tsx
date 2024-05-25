@@ -14,42 +14,36 @@ export interface PlayerProps {
   setLoading(val: boolean): void;
   changeTrack(direction: TrackChange): void;
 }
-let c = 0;
+
 const Player = ({ audio, className, changeTrack, isPending }: PlayerProps) => {
   const soundController = useRef<null | SoundDriver>(null);
   const { loading, setLoading } = usePlayerContext();
-  console.log('render ', c++);
 
   const initUI = useCallback(async () => {
-    if (!isPending) {
-      console.log(audio);
-
-      if (audio) {
-        const soundInstance = new SoundDriver(audio.file);
-        try {
-          await soundInstance.init(document.getElementById('waveContainer'));
-          await soundController.current?.reset();
-          soundController.current = soundInstance;
-        } catch (err: unknown) {
-          console.log(err);
-        } finally {
-          await soundInstance.drawChart();
-          setLoading(false);
-        }
-      } else {
-        console.log('deleting');
-
-        soundController.current = null;
+    if (!isPending && audio) {
+      const soundInstance = new SoundDriver(audio.file);
+      try {
+        await soundInstance.init(document.getElementById('waveContainer'));
+        console.log(soundController.current);
+        soundController.current = soundInstance;
+      } catch (err: unknown) {
+        console.log(err);
+      } finally {
+        await soundInstance.drawChart();
+        setLoading(false);
       }
     }
   }, [audio]);
 
   useEffect(() => {
     initUI();
-  }, [audio, initUI]);
+    return () => {
+      (async () => await soundController.current?.reset())();
+    };
+  }, [audio?.title, initUI]);
 
   const togglePlayer = useCallback(
-    (type: AudioActions) => {
+    async (type: AudioActions) => {
       if (type === 'play') {
         soundController?.current?.play();
       } else if (type === 'stop') {
@@ -87,7 +81,7 @@ const Player = ({ audio, className, changeTrack, isPending }: PlayerProps) => {
         />
       )}
 
-      {soundController.current && audio && (
+      {audio && (
         <Toolbar
           key={audio.title}
           onVolumeChange={onVolumeChange}

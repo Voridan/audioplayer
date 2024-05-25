@@ -119,8 +119,6 @@ class Drawer {
       .attr('stroke-width', '1');
   };
 
-  private triangleDragStarted = (e) => {};
-
   private triangleDragEnded = (x: number) => {
     this.emit<number>(
       EventType.DRAG_CURSOR_END,
@@ -274,6 +272,41 @@ class Drawer {
     return filteredData.map((n) => n * multiplier); // scaling data to [0, 1]
   }
 
+  public animateAudio = (analyser: AnalyserNode) => {
+    const bufferLength = analyser.frequencyBinCount;
+    const dataArray = new Uint8Array(bufferLength);
+    const svg = d3.select(this.parent).select('svg');
+    const height = this.parent.clientHeight;
+    const width = this.parent.clientWidth;
+
+    const xScale = d3.scaleLinear().domain([0, bufferLength]).range([0, width]);
+    const yScale = d3.scaleLinear().domain([0, 255]).range([height, 0]);
+
+    const bars = svg
+      .selectAll('.bar')
+      .data(dataArray)
+      .enter()
+      .append('rect')
+      .attr('class', 'bar')
+      .attr('x', (d, i) => xScale(i))
+      .attr('width', xScale(1) - xScale(0) - 1)
+      .attr('y', height)
+      .attr('height', 0)
+      .attr('fill', '#03A300');
+
+    const animate = () => {
+      requestAnimationFrame(animate);
+      analyser.getByteFrequencyData(dataArray);
+
+      bars
+        .data(dataArray)
+        .attr('y', (d) => yScale(d))
+        .attr('height', (d) => height - yScale(d));
+    };
+
+    animate();
+  };
+
   public clear() {
     this.parent.innerHTML = '';
   }
@@ -291,14 +324,14 @@ class Drawer {
     });
   }
 
-  subscribe<T>(eventType: EventType, handler: EventHandler<T>): void {
+  public subscribe<T>(eventType: EventType, handler: EventHandler<T>): void {
     if (!this.eventHandlers.has(eventType)) {
       this.eventHandlers.set(eventType, []);
     }
     this.eventHandlers.get(eventType)?.push(handler);
   }
 
-  emit<T>(eventType: EventType, arg: T): void {
+  private emit<T>(eventType: EventType, arg: T): void {
     const handlers = this.eventHandlers.get(eventType);
     if (handlers) {
       handlers.forEach((handler) => {

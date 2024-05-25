@@ -1,9 +1,9 @@
 import { usePlayerContext } from '../../context/PlayerContext';
 import styles from './sidebar.module.css';
-
+import { TrackChange } from '../../types.ts';
 export interface SidebarProps {
   audios: string[];
-  handleAudioChoice(choice: string): void;
+  changeTrack(direction: TrackChange, index?: number): void;
   removeAudio(audio: string): void;
   resetAudio(): void;
   className?: string;
@@ -12,7 +12,7 @@ export interface SidebarProps {
 
 const Sidebar: React.FC<SidebarProps> = ({
   audios,
-  handleAudioChoice,
+  changeTrack,
   className,
   currentAudio,
   removeAudio,
@@ -32,7 +32,7 @@ const Sidebar: React.FC<SidebarProps> = ({
       <p className={styles.label}>Recent Uploads</p>
       <div className={styles.list}>
         {audios.length ? (
-          audios.map((audio) => (
+          audios.map((audio, idx) => (
             <button
               type='button'
               className={`${
@@ -40,7 +40,9 @@ const Sidebar: React.FC<SidebarProps> = ({
                   ? styles['list-item_active']
                   : styles['list-item']
               }`}
-              onClick={() => handleAudioChoice(audio)}
+              onClick={() =>
+                currentAudio !== audio && changeTrack('choose', idx)
+              }
               key={audio}
             >
               {audio}

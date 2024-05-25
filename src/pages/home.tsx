@@ -14,34 +14,35 @@ export default function HomePage() {
   const [currentAudio, setCurrentAudio] = useState<Audio | null>(null);
   const [isPending, startTransition] = useTransition();
 
-  const handleAudioChoice = (audio: string | null) => {
-    const chosenAudio = files?.find((file) => file.title === audio);
-    if (chosenAudio) {
-      setLoading(true);
-      setCurrentAudio({ ...chosenAudio });
-    }
-  };
-
   const changeTrack = useCallback(
-    (direction: TrackChange) => {
+    (type: TrackChange, index?: number) => {
       if (currentAudio) {
         const currIndex = files.findIndex(
           (f) => f.title === currentAudio.title
         );
         let newTrack: Audio;
-        if (direction === 'next') {
-          newTrack =
-            currIndex < files.length - 1
-              ? { ...files[currIndex + 1] }
-              : { ...files[0] };
-        } else {
-          newTrack =
-            currIndex > 0
-              ? { ...files[currIndex - 1] }
-              : { ...files[files.length - 1] };
+        switch (type) {
+          case 'next':
+            newTrack =
+              currIndex < files.length - 1
+                ? { ...files[currIndex + 1] }
+                : { ...files[0] };
+            break;
+          case 'prev':
+            newTrack =
+              currIndex > 0
+                ? { ...files[currIndex - 1] }
+                : { ...files[files.length - 1] };
+            break;
+          case 'choose':
+            if (index !== undefined) newTrack = { ...files[index] };
+            break;
+          default:
+            alert('unexpected type value');
+            return;
         }
         startTransition(() => {
-          // setLoading(true);
+          setLoading(true);
           setCurrentAudio(newTrack);
         });
       }
@@ -116,7 +117,7 @@ export default function HomePage() {
         removeAudio={removeAudio}
         className={`${styles.aside}`}
         audios={files?.map((f) => f.title)}
-        handleAudioChoice={handleAudioChoice}
+        changeTrack={changeTrack}
         currentAudio={currentAudio?.title || ''}
       />
     </div>

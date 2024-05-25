@@ -13,6 +13,8 @@ class SoundDriver {
 
   private bufferSource?: AudioBufferSourceNode = undefined; // audio buffer source, to play the sound
 
+  private analyser?: AnalyserNode = undefined;
+
   private startedAt = 0;
 
   private pausedAt = 0;
@@ -83,13 +85,27 @@ class SoundDriver {
 
     this.bufferSource.connect(this.gainNode);
     this.bufferSource.connect(this.context.destination);
-    this.pausedAt = startAt;
+    this.bufferSource.connect(this.analyser!);
+    this.analyser?.connect(this.context.destination);
+    this.analyser!.fftSize = 256;
+    this.pausedAt = Math.max(startAt, 0);
     if (this.isRunning) {
       this.pausedAt = 0;
+      console.log(this.context.currentTime, startAt);
+
       this.startedAt = startAt;
       this.bufferSource.start(0, startAt);
-    } else this.pausedAt = startAt;
+      this.animateAudio();
+    }
   };
+
+  public animateAudio() {
+    if (!this.bufferSource || !this.analyser) {
+      throw Error('Source is not defined');
+    }
+
+    this.drawer?.animateAudio(this.analyser);
+  }
 
   private loadSound(readerEvent: ProgressEvent<FileReader>) {
     if (!readerEvent?.target?.result) {
@@ -102,6 +118,8 @@ class SoundDriver {
   }
 
   public reset = async () => {
+    this.bufferSource?.disconnect();
+    this.gainNode?.disconnect();
     await this.context.close();
   };
 
@@ -111,6 +129,7 @@ class SoundDriver {
     shift: number = 1
   ) => {
     if (stop) {
+      console.log('stop', this.currentPlaybackInterval);
       clearInterval(this.currentPlaybackInterval);
       this.drawer?.moveCursor(0, 0, { drag: false, reset });
       return;
@@ -142,6 +161,11 @@ class SoundDriver {
 
     this.gainNode.connect(this.context.destination);
 
+    this.analyser = this.context.createAnalyser();
+    this.bufferSource.connect(this.analyser);
+    this.analyser.connect(this.context.destination);
+    this.analyser.fftSize = 256;
+
     await this.context.resume();
     this.bufferSource.start(0, this.pausedAt);
 
@@ -151,10 +175,11 @@ class SoundDriver {
     this.pausedAt = 0;
 
     this.isRunning = true;
+    this.animateAudio();
   }
 
   public async pause(reset?: boolean) {
-    if (!this.bufferSource || !this.gainNode) {
+    if (!this.bufferSource || !this.gainNode || !this.analyser) {
       throw new Error(
         'Pause - bufferSource is not exists. Maybe you forgot to call Play before?'
       );
@@ -167,6 +192,7 @@ class SoundDriver {
     this.bufferSource.stop(this.pausedAt);
     this.bufferSource.disconnect();
     this.gainNode.disconnect();
+    this.analyser.disconnect();
     this.handleCursor(true);
     this.isRunning = false;
   }
