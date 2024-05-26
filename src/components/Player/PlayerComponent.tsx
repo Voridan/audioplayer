@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import SoundDriver from '../../util/SoundDriver';
 import { Audio } from '../../pages/home';
 import Loader from '../Loader/LoaderComponent';
@@ -25,6 +25,9 @@ const Player = ({ audio, className, changeTrack, isPending }: PlayerProps) => {
       try {
         await soundInstance.init(document.getElementById('waveContainer'));
         soundController.current = soundInstance;
+        soundController.current?.setOnEnd(() => {
+          changeTrack('next');
+        });
       } catch (err: unknown) {
         console.log(err);
       } finally {

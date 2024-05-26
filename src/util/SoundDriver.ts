@@ -25,10 +25,18 @@ class SoundDriver {
 
   private fftSize = 256;
 
+  public onEnd: () => void;
+
   constructor(audioFile: Blob) {
     this.audiFile = audioFile; // https://developer.mozilla.org/en-US/docs/Web/API/AudioParam
     this.context = new AudioContext(); // https://developer.mozilla.org/en-US/docs/Web/API/AudioContext
   }
+
+  public setOnEnd = (cb: () => void) => {
+    console.log('set');
+
+    this.onEnd = cb;
+  };
 
   static showError(error: string) {
     alert(
@@ -76,13 +84,16 @@ class SoundDriver {
 
   private replay = (startAt: number) => {
     if (this.bufferSource) {
+      this.bufferSource.onended = null;
       this.bufferSource.stop();
       this.bufferSource.disconnect();
     }
 
     this.bufferSource = this.context.createBufferSource();
     this.bufferSource.buffer = this.audioBuffer!;
-
+    this.bufferSource.onended = () => {
+      this.onEnd();
+    };
     this.gainNode = this.context.createGain();
 
     this.bufferSource.connect(this.gainNode);
@@ -118,10 +129,10 @@ class SoundDriver {
   }
 
   public reset = async () => {
-    console.log('reset');
     this.bufferSource?.disconnect();
     this.gainNode?.disconnect();
     await this.context.close();
+    this.drawer?.clearBars();
     clearInterval(this.drawer?.animationId);
   };
 
@@ -155,11 +166,14 @@ class SoundDriver {
     this.gainNode = this.context.createGain();
 
     this.bufferSource = this.context.createBufferSource();
-    this.bufferSource.buffer = this.audioBuffer;
 
+    this.bufferSource.buffer = this.audioBuffer;
+    // this.bufferSource.loop = true;
     this.bufferSource.connect(this.gainNode);
     this.bufferSource.connect(this.context.destination);
-
+    this.bufferSource.onended = () => {
+      this.onEnd();
+    };
     this.gainNode.connect(this.context.destination);
 
     this.analyser = this.context.createAnalyser();
@@ -168,7 +182,6 @@ class SoundDriver {
     this.analyser.fftSize = this.fftSize;
 
     await this.context.resume();
-    console.log('play', this.pausedAt);
     this.bufferSource.start(0, this.pausedAt);
 
     this.handleCursor();
@@ -193,6 +206,7 @@ class SoundDriver {
     reset && this.drawer?.clearBars();
     this.pausedAt = reset ? 0 : this.context.currentTime - this.startedAt;
     this.bufferSource.stop(this.pausedAt);
+    this.bufferSource.onended = null;
     this.bufferSource.disconnect();
     this.gainNode.disconnect();
     this.analyser.disconnect();
