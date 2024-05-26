@@ -16,47 +16,47 @@ export default function HomePage() {
 
   const changeTrack = useCallback(
     (type: TrackChange, index?: number) => {
-      if (currentAudio) {
-        const currIndex = files.findIndex(
-          (f) => f.title === currentAudio.title
-        );
-        let newTrack: Audio;
-        switch (type) {
-          case 'next':
-            newTrack =
-              currIndex < files.length - 1
-                ? { ...files[currIndex + 1] }
-                : { ...files[0] };
-            break;
-          case 'prev':
-            newTrack =
-              currIndex > 0
-                ? { ...files[currIndex - 1] }
-                : { ...files[files.length - 1] };
-            break;
-          case 'choose':
-            if (index !== undefined) newTrack = { ...files[index] };
-            break;
-          default:
-            alert('unexpected type value');
-            return;
-        }
-        startTransition(() => {
-          setLoading(true);
-          setCurrentAudio(newTrack);
-        });
+      const currIndex = currentAudio
+        ? files.findIndex((f) => f.title === currentAudio.title)
+        : 0;
+      let newTrack: Audio;
+      switch (type) {
+        case 'next':
+          newTrack =
+            currIndex < files.length - 1
+              ? { ...files[currIndex + 1] }
+              : { ...files[0] };
+          break;
+        case 'prev':
+          newTrack =
+            currIndex > 0
+              ? { ...files[currIndex - 1] }
+              : { ...files[files.length - 1] };
+          break;
+        case 'choose':
+          if (index !== undefined) newTrack = { ...files[index] };
+          break;
+        default:
+          alert('unexpected type value');
+          return;
       }
+      startTransition(() => {
+        setLoading(true);
+        setCurrentAudio(newTrack);
+      });
     },
     [files, currentAudio]
   );
 
-  const removeAudio = useCallback((audio: string) => {
-    setFiles((prev) => [...prev.filter((f) => f.title !== audio)]);
-  }, []);
-
-  const resetAudio = () => {
-    setCurrentAudio(null);
-  };
+  const removeAudio = useCallback(
+    (audio: string) => {
+      if (audio === currentAudio?.title) {
+        setCurrentAudio(null);
+      }
+      setFiles((prev) => [...prev.filter((f) => f.title !== audio)]);
+    },
+    [currentAudio]
+  );
 
   const makeTypedAudio = (file: File) => ({ title: file.name, file });
 
@@ -113,7 +113,6 @@ export default function HomePage() {
         className={`${styles.input}`}
       ></AudioInput>
       <Sidebar
-        resetAudio={resetAudio}
         removeAudio={removeAudio}
         className={`${styles.aside}`}
         audios={files?.map((f) => f.title)}

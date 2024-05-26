@@ -5,7 +5,6 @@ export interface SidebarProps {
   audios: string[];
   changeTrack(direction: TrackChange, index?: number): void;
   removeAudio(audio: string): void;
-  resetAudio(): void;
   className?: string;
   currentAudio: string;
 }
@@ -16,7 +15,6 @@ const Sidebar: React.FC<SidebarProps> = ({
   className,
   currentAudio,
   removeAudio,
-  resetAudio,
 }): React.ReactNode => {
   const { loading } = usePlayerContext();
 
@@ -50,9 +48,6 @@ const Sidebar: React.FC<SidebarProps> = ({
                 onClick={(e: React.MouseEvent<HTMLSpanElement>) => {
                   e.stopPropagation();
                   removeAudio(audio);
-                  if (audio === currentAudio) {
-                    resetAudio();
-                  }
                 }}
               >
                 X

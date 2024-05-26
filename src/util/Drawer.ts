@@ -34,6 +34,8 @@ class Drawer {
 
   private eventHandlers;
 
+  public animationId: number = -1;
+
   constructor(buffer: AudioBuffer, parent: HTMLElement) {
     this.buffer = buffer;
     this.parent = parent;
@@ -77,7 +79,6 @@ class Drawer {
 
     const dragHandler = d3
       .drag()
-      .on('start', this.triangleDragStarted)
       .on('drag', (e) => this.dragCursor(e.x, this.cursorTopShift))
       .on('end', (e) => this.triangleDragEnded(e.x));
 
@@ -94,7 +95,7 @@ class Drawer {
     this.cursor = svg
       .append('g')
       .attr('class', 'cursor-group')
-      .attr('cursor', `pointer`)
+      .attr('cursor', 'pointer')
       .attr('height', height - margin.top - margin.bottom)
       .attr(
         'transform',
@@ -216,23 +217,23 @@ class Drawer {
       .attr('height', height)
       .attr('fill', 'rgba(255, 255, 255, 0)');
 
-    const g = svg
-      .append('g')
-      .attr('transform', `translate(0, ${height / 2})`)
-      .attr('fill', '#03A300');
+    // const g = svg
+    //   .append('g')
+    //   .attr('transform', `translate(0, ${height / 2})`)
+    //   .attr('fill', '#03A300');
 
-    const band = (width - margin.left - margin.right) / audioData.length; // audiotrack length
+    // const band = (width - margin.left - margin.right) / audioData.length; // audiotrack length
 
-    g.selectAll('rect')
-      .data(audioData)
-      .join('rect')
-      .attr('fill', '#03A300')
-      .attr('height', (d) => yScale(d)) // from data value into page scales
-      .attr('width', () => band * padding)
-      .attr('x', (_, i) => xScale(i))
-      .attr('y', (d) => -yScale(d) / 2)
-      .attr('rx', band / 2)
-      .attr('ry', band / 2);
+    // g.selectAll('rect')
+    //   .data(audioData)
+    //   .join('rect')
+    //   .attr('fill', '#03A300')
+    //   .attr('height', (d) => yScale(d)) // from data value into page scales
+    //   .attr('width', () => band * padding)
+    //   .attr('x', (_, i) => xScale(i))
+    //   .attr('y', (d) => -yScale(d) / 2)
+    //   .attr('rx', band / 2)
+    //   .attr('ry', band / 2);
 
     const bands = this.getTimeDomain();
 
@@ -272,43 +273,82 @@ class Drawer {
     return filteredData.map((n) => n * multiplier); // scaling data to [0, 1]
   }
 
-  public animateAudio = (analyser: AnalyserNode) => {
+  public initBars(analyser: AnalyserNode) {
     const bufferLength = analyser.frequencyBinCount;
     const dataArray = new Uint8Array(bufferLength);
-    const svg = d3.select(this.parent).select('svg');
-    const height = this.parent.clientHeight;
     const width = this.parent.clientWidth;
+    const height = this.parent.clientHeight;
+    const xScale = d3
+      .scaleLinear()
+      .domain([0, bufferLength])
+      .range([0, width / 2]);
+    const svg = d3.select(this.parent).select('svg');
+    const barWidth = width / 2 / bufferLength;
 
-    const xScale = d3.scaleLinear().domain([0, bufferLength]).range([0, width]);
-    const yScale = d3.scaleLinear().domain([0, 255]).range([height, 0]);
-
-    const bars = svg
+    svg
       .selectAll('.bar')
       .data(dataArray)
       .enter()
       .append('rect')
       .attr('class', 'bar')
-      .attr('x', (d, i) => xScale(i))
-      .attr('width', xScale(1) - xScale(0) - 1)
+      .attr('x', (_, i) => xScale(i) + width / 2)
+      .attr('width', barWidth)
       .attr('y', height)
-      .attr('height', 0)
-      .attr('fill', '#03A300');
+      .attr('height', 0);
 
+    svg
+      .selectAll('.mirrored-bar')
+      .data(dataArray)
+      .enter()
+      .append('rect')
+      .attr('class', 'mirrored-bar')
+      .attr('x', (_, i) => width / 2 - xScale(i))
+      .attr('width', barWidth)
+      .attr('y', height)
+      .attr('height', 0);
+  }
+
+  public animateAudio = (analyser: AnalyserNode) => {
+    this.initBars(analyser);
+    const bufferLength = analyser.frequencyBinCount;
+    const dataArray = new Uint8Array(bufferLength);
+    const height = this.parent.clientHeight;
+    const offset = +height * 0.2;
+    const bars = d3.select(this.parent).select('svg').selectAll('.bar');
+    const mirroredBars = d3
+      .select(this.parent)
+      .select('svg')
+      .selectAll('.mirrored-bar');
+
+    const yScale = d3.scaleLinear().domain([0, 255]).range([height, 0]);
+    const colorScale = d3
+      .scaleSequential(d3.interpolateViridis)
+      .domain([0, bufferLength]);
+    if (this.animationId > 0) cancelAnimationFrame(this.animationId);
     const animate = () => {
-      requestAnimationFrame(animate);
+      this.animationId = requestAnimationFrame(animate);
       analyser.getByteFrequencyData(dataArray);
 
       bars
         .data(dataArray)
-        .attr('y', (d) => yScale(d))
-        .attr('height', (d) => height - yScale(d));
+        .attr('y', (d) => yScale(d) + offset)
+        .attr('height', (d) => height - yScale(d))
+        .attr('fill', (_, i) => colorScale(i));
+      mirroredBars
+        .data(dataArray)
+        .attr('y', (d) => yScale(d) + offset)
+        .attr('height', (d) => height - yScale(d))
+        .attr('fill', (_, i) => colorScale(i));
     };
 
     animate();
+    return this.animationId;
   };
 
-  public clear() {
-    this.parent.innerHTML = '';
+  public clearBars() {
+    const svg = d3.select(this.parent).select('svg');
+    svg.selectAll('.bar').remove();
+    svg.selectAll('.mirrored-bar').remove();
   }
 
   public init() {

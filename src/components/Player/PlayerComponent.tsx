@@ -24,7 +24,6 @@ const Player = ({ audio, className, changeTrack, isPending }: PlayerProps) => {
       const soundInstance = new SoundDriver(audio.file);
       try {
         await soundInstance.init(document.getElementById('waveContainer'));
-        console.log(soundController.current);
         soundController.current = soundInstance;
       } catch (err: unknown) {
         console.log(err);

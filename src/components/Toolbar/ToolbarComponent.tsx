@@ -200,11 +200,11 @@ function useWheelVolume(volumeRef: RefObject<HTMLInputElement>) {
     const handleWheel = (event: WheelEvent) => {
       if (volumeInput) {
         event.preventDefault();
-        const step = 0.05;
+        const step = 0.01;
         const newValue =
           parseFloat(volumeInput.value) + (event.deltaY > 0 ? step : -step);
         volumeInput.value = Math.min(Math.max(newValue, -1), 1).toString();
-        const changeEvent = new Event('change', { bubbles: true });
+        const changeEvent = new Event('change');
         volumeInput.dispatchEvent(changeEvent);
       }
     };
@@ -233,7 +233,7 @@ function useWheelVolume(volumeRef: RefObject<HTMLInputElement>) {
         volumeInput.removeEventListener('wheel', handleWheel);
       }
     };
-  }, []);
+  }, [volumeRef]);
 }
 
 export default Toolbar;

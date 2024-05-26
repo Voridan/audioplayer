@@ -23,6 +23,8 @@ class SoundDriver {
 
   private currentPlaybackInterval: number = 0;
 
+  private fftSize = 256;
+
   constructor(audioFile: Blob) {
     this.audiFile = audioFile; // https://developer.mozilla.org/en-US/docs/Web/API/AudioParam
     this.context = new AudioContext(); // https://developer.mozilla.org/en-US/docs/Web/API/AudioContext
@@ -81,19 +83,16 @@ class SoundDriver {
     this.bufferSource = this.context.createBufferSource();
     this.bufferSource.buffer = this.audioBuffer!;
 
-    if (!this.gainNode) this.gainNode = this.context.createGain();
+    this.gainNode = this.context.createGain();
 
     this.bufferSource.connect(this.gainNode);
     this.bufferSource.connect(this.context.destination);
     this.bufferSource.connect(this.analyser!);
     this.analyser?.connect(this.context.destination);
-    this.analyser!.fftSize = 256;
+    this.analyser!.fftSize = this.fftSize;
     this.pausedAt = Math.max(startAt, 0);
     if (this.isRunning) {
-      this.pausedAt = 0;
-      console.log(this.context.currentTime, startAt);
-
-      this.startedAt = startAt;
+      this.startedAt = this.context.currentTime - this.pausedAt;
       this.bufferSource.start(0, startAt);
       this.animateAudio();
     }
@@ -118,9 +117,11 @@ class SoundDriver {
   }
 
   public reset = async () => {
+    console.log('reset');
     this.bufferSource?.disconnect();
     this.gainNode?.disconnect();
     await this.context.close();
+    clearInterval(this.drawer?.animationId);
   };
 
   private handleCursor = (
@@ -129,7 +130,6 @@ class SoundDriver {
     shift: number = 1
   ) => {
     if (stop) {
-      console.log('stop', this.currentPlaybackInterval);
       clearInterval(this.currentPlaybackInterval);
       this.drawer?.moveCursor(0, 0, { drag: false, reset });
       return;
@@ -164,9 +164,10 @@ class SoundDriver {
     this.analyser = this.context.createAnalyser();
     this.bufferSource.connect(this.analyser);
     this.analyser.connect(this.context.destination);
-    this.analyser.fftSize = 256;
+    this.analyser.fftSize = this.fftSize;
 
     await this.context.resume();
+    console.log('play', this.pausedAt);
     this.bufferSource.start(0, this.pausedAt);
 
     this.handleCursor();
@@ -186,14 +187,14 @@ class SoundDriver {
     }
 
     await this.context.suspend();
-
-    reset && this.handleCursor(true, true);
+    cancelAnimationFrame(this.drawer!.animationId);
+    this.handleCursor(true, !!reset);
+    reset && this.drawer?.clearBars();
     this.pausedAt = reset ? 0 : this.context.currentTime - this.startedAt;
     this.bufferSource.stop(this.pausedAt);
     this.bufferSource.disconnect();
     this.gainNode.disconnect();
     this.analyser.disconnect();
-    this.handleCursor(true);
     this.isRunning = false;
   }
 
