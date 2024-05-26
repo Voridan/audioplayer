@@ -41,7 +41,7 @@ class Drawer {
     this.parent = parent;
     this.leftBound = this.parent.getBoundingClientRect().left - this.paddings;
     this.rightBound = this.parent.getBoundingClientRect().right - this.paddings;
-    this.eventHandlers = new Map<EventType, Array<EventHandler<any>>>();
+    this.eventHandlers = new Map<EventType, Array<EventHandler<unknown>>>();
   }
 
   private getTimeDomain() {
@@ -163,7 +163,6 @@ class Drawer {
       margin = { top: 0, bottom: 0, left: 0, right: 0 },
       height = this.parent.clientHeight,
       width = this.parent.clientWidth,
-      padding = 1,
     } = options;
 
     const domain = d3.extent(audioData); // [min, max]

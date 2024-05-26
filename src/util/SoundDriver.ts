@@ -88,6 +88,7 @@ class SoundDriver {
     this.bufferSource.connect(this.gainNode);
     this.bufferSource.connect(this.context.destination);
     this.bufferSource.connect(this.analyser!);
+    this.gainNode.connect(this.context.destination);
     this.analyser?.connect(this.context.destination);
     this.analyser!.fftSize = this.fftSize;
     this.pausedAt = Math.max(startAt, 0);
