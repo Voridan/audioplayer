@@ -25,7 +25,7 @@ class SoundDriver {
 
   private fftSize = 256;
 
-  public onEnd: () => void;
+  public onEnd!: () => void;
 
   constructor(audioFile: Blob) {
     this.audiFile = audioFile; // https://developer.mozilla.org/en-US/docs/Web/API/AudioParam
@@ -33,8 +33,6 @@ class SoundDriver {
   }
 
   public setOnEnd = (cb: () => void) => {
-    console.log('set');
-
     this.onEnd = cb;
   };
 
@@ -87,22 +85,24 @@ class SoundDriver {
       this.bufferSource.onended = null;
       this.bufferSource.stop();
       this.bufferSource.disconnect();
+      this.gainNode?.disconnect();
     }
 
     this.bufferSource = this.context.createBufferSource();
     this.bufferSource.buffer = this.audioBuffer!;
     this.bufferSource.onended = () => {
-      this.onEnd();
+      this.onEnd && this.onEnd();
     };
     this.gainNode = this.context.createGain();
 
     this.bufferSource.connect(this.gainNode);
-    this.bufferSource.connect(this.context.destination);
-    this.bufferSource.connect(this.analyser!);
     this.gainNode.connect(this.context.destination);
+
+    this.bufferSource.connect(this.analyser!);
     this.analyser?.connect(this.context.destination);
     this.analyser!.fftSize = this.fftSize;
     this.pausedAt = Math.max(startAt, 0);
+
     if (this.isRunning) {
       this.startedAt = this.context.currentTime - this.pausedAt;
       this.bufferSource.start(0, startAt);
@@ -163,18 +163,16 @@ class SoundDriver {
       return;
     }
 
+    this.bufferSource = this.context.createBufferSource();
+    this.bufferSource.buffer = this.audioBuffer;
     this.gainNode = this.context.createGain();
 
-    this.bufferSource = this.context.createBufferSource();
-
-    this.bufferSource.buffer = this.audioBuffer;
-    // this.bufferSource.loop = true;
     this.bufferSource.connect(this.gainNode);
-    this.bufferSource.connect(this.context.destination);
-    this.bufferSource.onended = () => {
-      this.onEnd();
-    };
     this.gainNode.connect(this.context.destination);
+
+    this.bufferSource.onended = () => {
+      this.onEnd && this.onEnd();
+    };
 
     this.analyser = this.context.createAnalyser();
     this.bufferSource.connect(this.analyser);
@@ -210,6 +208,7 @@ class SoundDriver {
     this.bufferSource.disconnect();
     this.gainNode.disconnect();
     this.analyser.disconnect();
+
     this.isRunning = false;
   }
 
@@ -219,6 +218,7 @@ class SoundDriver {
     }
 
     this.gainNode.gain.value = volume;
+    console.log(this.gainNode.gain.value);
   }
 
   public async drawChart() {

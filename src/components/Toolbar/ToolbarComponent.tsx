@@ -99,6 +99,7 @@ const stopIcon = (
 
 const getNavButton = (prev = true) => {
   const rotate = prev ? 'rotate(270)' : 'rotate(90)';
+
   return (
     <svg
       width='32px'
@@ -148,9 +149,9 @@ const Toolbar = ({ onVolumeChange, togglePlayer }: ToolbarProps) => {
           className={styles['sound-controll']}
           type='range'
           onChange={onVolumeChange}
-          defaultValue={1}
           min={-1}
           max={1}
+          defaultValue={1}
           step={0.01}
         />
         <button
@@ -204,7 +205,7 @@ function useWheelVolume(volumeRef: RefObject<HTMLInputElement>) {
         const newValue =
           parseFloat(volumeInput.value) + (event.deltaY > 0 ? step : -step);
         volumeInput.value = Math.min(Math.max(newValue, -1), 1).toString();
-        const changeEvent = new Event('change');
+        const changeEvent = new Event('change', { bubbles: true });
         volumeInput.dispatchEvent(changeEvent);
       }
     };
